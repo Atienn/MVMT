@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-public class PlayerTPSController : RunnerController
+public class RunnerTPSPlayer : RunnerController
 {
-    RunnerMovement runner;
-
     [SerializeField] Transform cam;
     Vector3 dirInput;
 
@@ -19,11 +17,9 @@ public class PlayerTPSController : RunnerController
         //Project the directioal input vector onto horizontal plane.
         dirInput.y = 0f;
         //When normalized, this vector represents the desired direction to move in.
-        dirInput.Normalize();
-
-        return dirInput;
+        return dirInput.normalized;
     }
-    public override bool GetDash()
+    public override bool GetMvmtSpecial()
     {
         return Input.GetKeyDown(KeyCode.Space);
     }

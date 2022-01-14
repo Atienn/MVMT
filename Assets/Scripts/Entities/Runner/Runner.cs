@@ -1,12 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Misc;
 
 [RequireComponent(typeof(RunnerController))]
 [RequireComponent(typeof(CharacterController))]
-public class RunnerMovement : MonoBehaviour
+public class Runner : Entity
 {
-    RunnerController ctrl;
+    #region Movement
+
+    [SerializeField] RunnerController input;
     CharacterController charCtrl;
 
     [Header("General")]
@@ -15,17 +18,16 @@ public class RunnerMovement : MonoBehaviour
 
     [Header("Dash")]
     [SerializeField] float dashSpeed = 85;
-    [SerializeField] float jumpSpeed = 50;
-    [SerializeField] float jumpForce = 60;
+   // [SerializeField] float jumpSpeed = 50;
+    [SerializeField] float jumpForce = 55;
     [Header("Length")]
     [SerializeField] byte dashActive = 15;
     [SerializeField] byte dashRecovery = 21;
-    [SerializeField] byte dashJump = 30;
+    // [SerializeField] byte dashJump = 30;
 
     //Enables strategy design pattern.
-    delegate void Strategy();
-    Strategy mvmtMode;
-    Strategy dashMode;
+    VoidStrategy mvmtMode;
+    VoidStrategy dashMode;
 
     bool dashInput;
     byte timer;
@@ -41,7 +43,7 @@ public class RunnerMovement : MonoBehaviour
 
     void Start()
     {
-        ctrl = GetComponent<RunnerController>();
+        //input = GetComponent<RunnerController>();
         charCtrl = GetComponent<CharacterController>();
 
         mvmtMode = GroundMvmt;
@@ -53,17 +55,15 @@ public class RunnerMovement : MonoBehaviour
 
     void Update()
     {
-        dirInput = ctrl.GetMvmt();
-        if(ctrl.GetDash()) dashMode();
-        if (ctrl.GetReset()) charCtrl.Move(spawnLocation - transform.position);
+        dirInput = input.GetMvmt();
+        //Special is dash for Runner.
+        if (input.GetMvmtSpecial()) { dashMode(); }
+        if (input.GetReset()) { charCtrl.Move(spawnLocation - transform.position); }
     }
 
-    void FixedUpdate()
-    {
-        mvmtMode();
-    }
+    void FixedUpdate() { mvmtMode(); }
 
-    void SwitchMode(Strategy mvmt, Strategy dash)
+    void SwitchMode(VoidStrategy mvmt, VoidStrategy dash)
     {
         mvmtMode = mvmt;
         dashMode = dash;
@@ -75,7 +75,7 @@ public class RunnerMovement : MonoBehaviour
     {
         if (!charCtrl.isGrounded)
         {
-            Debug.Log("Ground -> Air");
+            //Debug.Log("Ground -> Air");
             SwitchMode(AirMvmt, NoDash);
             AirMvmt(); return;
         }
@@ -111,13 +111,13 @@ public class RunnerMovement : MonoBehaviour
 
     void AirMvmt()
     {
-        if (charCtrl.isGrounded)
+        if (charCtrl.isGrounded && velocity.y < 0)
         {
             //Lower vertical velocity to a neglegible amount. 
             //Cannot be 0 as the character controller's 'isGrounded' stops working properly otherwise.
             velocity.y = -0.1f;
 
-            Debug.Log("Air -> Ground");
+            //Debug.Log("Air -> Ground");
             //If now grounded, switch to grounded mode.
             SwitchMode(GroundMvmt, GroundDash);
             GroundMvmt(); return;
@@ -135,7 +135,7 @@ public class RunnerMovement : MonoBehaviour
         //Compute dash cooldown if any.
         if (--timer == 0)
         {
-            Debug.Log("Dash -> Recovery");
+            //Debug.Log("Dash -> Recovery");
             timer = dashRecovery;
             SwitchMode(DashRecoveryMvmt, NoDash);
             DashRecoveryMvmt(); return;
@@ -143,7 +143,7 @@ public class RunnerMovement : MonoBehaviour
         //
         else if (!charCtrl.isGrounded)
         {
-            Debug.Log("Dash -> F-Jump");
+            //Debug.Log("Dash -> F-Jump");
             //Jumping forwards
             velocity = velocity.normalized * jumpForce;
             velocity.y = jumpForce;
@@ -158,7 +158,7 @@ public class RunnerMovement : MonoBehaviour
     {
         if (!charCtrl.isGrounded)
         {
-            Debug.Log("Recovery -> Air");
+            //Debug.Log("Recovery -> Air");
             timer = 0;
             SwitchMode(AirMvmt, NoDash);
             AirMvmt(); return;
@@ -166,7 +166,7 @@ public class RunnerMovement : MonoBehaviour
         //Compute dash cooldown if any.
         else if (--timer == 0)
         {
-            Debug.Log("Recovery -> Ground");
+            //Debug.Log("Recovery -> Ground");
             SwitchMode(GroundMvmt, GroundDash);
             GroundMvmt(); return;
         }
@@ -184,7 +184,7 @@ public class RunnerMovement : MonoBehaviour
 
         if (charCtrl.isGrounded)
         {
-            Debug.Log("Jump -> Ground");
+            //Debug.Log("Jump -> Ground");
 
             //Lower vertical velocity to a neglegible amount. 
             //Cannot be 0 as the character controller's 'isGrounded' stops working properly otherwise.
@@ -195,7 +195,7 @@ public class RunnerMovement : MonoBehaviour
         //Compute dash cooldown if any.
         else if (--timer == 0)
         {
-            Debug.Log("Jump -> Air");
+            //Debug.Log("Jump -> Air");
             SwitchMode(AirMvmt, NoDash);
             AirMvmt(); return;
         }
@@ -206,12 +206,12 @@ public class RunnerMovement : MonoBehaviour
     #region Dash Modes
 
     void NoDash() {
-        Debug.Log("No Dash");
+        //Debug.Log("No Dash");
     }
 
     void GroundDash() 
     {
-        Debug.Log("Ground -> Dash");
+        //Debug.Log("Ground -> Dash");
 
         timer = dashActive;
         if(dirInput == Vector3.zero)
@@ -227,7 +227,7 @@ public class RunnerMovement : MonoBehaviour
 
     void JumpDash() 
     {
-        Debug.Log("Dash -> B-Jump");
+        //Debug.Log("Dash -> B-Jump");
         velocity = -dirInput * jumpForce *.8f;
         velocity.y = jumpForce;
         SwitchMode(GroundMvmt, NoDash);
@@ -290,4 +290,17 @@ public class RunnerMovement : MonoBehaviour
 
     //    public void Dash(RunnerMovement run) { }
     //}
+
+
+    #endregion
+
+    #region Combat
+
+    public override void OnHit(Attack attk)
+    {
+        this.velocity += attk.direction * attk.damage;
+        SwitchMode(AirMvmt, NoDash);
+    }
+
+    #endregion
 }
